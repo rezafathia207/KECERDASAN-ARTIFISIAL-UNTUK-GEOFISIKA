@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard Pendataan Lahan</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--bg:#fdf3f7;--card:#fff;--ink:#3a1a2b;--mut:#8a6577;--line:#f3d3e0;--a1:#b8235f;--a2:#f27ab0;--a3:#f9c3d9}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1f0f19;--card:#2c1624;--ink:#fbe9f1;--mut:#d9a9bf;--line:#4a2a3c;--a1:#d94a85;--a2:#ff9cc7;--a3:#7a3a58}}
+:root[data-theme="dark"]{--bg:#1f0f19;--card:#2c1624;--ink:#fbe9f1;--mut:#d9a9bf;--line:#4a2a3c;--a1:#d94a85;--a2:#ff9cc7;--a3:#7a3a58}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 "Segoe UI",system-ui,sans-serif}
+main{max-width:1400px;margin:0 auto;padding:0 20px 40px}
+header{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;align-items:flex-end;padding:24px 0 14px}
+h1{font-size:28px;margin:0}h2{font-size:17px;margin:0}.sub,.note{color:var(--mut);font-size:14px}
+.bar{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end}
+.f{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--mut)}
+select,.btn{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 8px;min-width:150px}
+.btn{cursor:pointer;min-width:0;background:var(--a1);color:#fff;border-color:var(--a1)}.btn.g{background:var(--card);color:var(--ink);border-color:var(--line)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin:18px 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;min-width:0}
+.l{font-size:14px;color:var(--mut)}.v{font-size:30px;font-weight:700;margin:2px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr));gap:14px;margin-bottom:14px}
+.cv{position:relative;height:300px;margin-top:8px}
+.tw{overflow-x:auto;max-height:420px;margin-top:10px}table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:6px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}th{position:sticky;top:0;background:var(--card)}td.n,th.n{text-align:right}
+summary{cursor:pointer;font-weight:600}
+@media print{.bar,.noprint{display:none}body{background:#fff}}
+</style></head><body><main>
+<header><div><h1>Dashboard Pendataan Lahan</h1><div class="sub" id="meta"></div></div>
+<div class="noprint"><button class="btn g" id="theme">Terang/Gelap</button> <button class="btn g" onclick="print()">Cetak</button></div></header>
+<div class="bar noprint" id="bar"></div>
+<div class="kpis" id="kpis"></div>
+<div class="grid">
+<div class="card"><h2>Luas per penggunaan lahan (ha)</h2><div class="cv"><canvas id="c1"></canvas></div></div>
+<div class="card"><h2>Proporsi status kepemilikan (luas)</h2><div class="cv"><canvas id="c2"></canvas></div></div>
+<div class="card"><h2>Luas per kecamatan (ha)</h2><div class="cv"><canvas id="c3"></canvas></div></div>
+<div class="card"><h2>Jumlah petak per kategori lereng</h2><div class="cv"><canvas id="c4"></canvas></div></div>
+</div>
+<div class="card"><details><summary>Tabel data lahan (<span id="cnt"></span> petak)</summary><div class="tw"><table id="tb"></table></div></details>
+<p class="note">Data contoh (fiktif); ganti dengan data lapangan. Kategori lereng: &lt;8% Datar, 8–15% Landai, 15–25% Agak Curam, ≥25% Curam.</p></div>
+<script>
+const D=[{"id": "LHN-001", "kec": "Pallangga", "desa": "Bungaejaya", "use": "Hutan", "own": "Hak Milik", "soil": "Aluvial", "luas": 9.91, "kem": 3.3, "elev": 154}, {"id": "LHN-002", "kec": "Tamalate", "desa": "Barombong", "use": "Sawah", "own": "Hak Milik", "soil": "Regosol", "luas": 5.19, "kem": 8.4, "elev": 146}, {"id": "LHN-003", "kec": "Moncongloe", "desa": "Moncongloe Lappara", "use": "Tambak", "own": "Hak Milik", "soil": "Latosol", "luas": 7.68, "kem": 20.4, "elev": 20}, {"id": "LHN-004", "kec": "Tanralili", "desa": "Allepolea", "use": "Sawah", "own": "HGU", "soil": "Aluvial", "luas": 6.81, "kem": 4.7, "elev": 112}, {"id": "LHN-005", "kec": "Bontomarannu", "desa": "Borongloe", "use": "Tambak", "own": "Tanah Negara", "soil": "Latosol", "luas": 1.51, "kem": 20, "elev": 53}, {"id": "LHN-006", "kec": "Pallangga", "desa": "Bungaejaya", "use": "Tambak", "own": "Hak Milik", "soil": "Aluvial", "luas": 7.54, "kem": 17.4, "elev": 141}, {"id": "LHN-007", "kec": "Moncongloe", "desa": "Bontoramba", "use": "Hutan", "own": "Tanah Adat", "soil": "Podsolik", "luas": 3.81, "kem": 27.8, "elev": 183}, {"id": "LHN-008", "kec": "Bontomarannu", "desa": "Borongloe", "use": "Tambak", "own": "Tanah Negara", "soil": "Regosol", "luas": 10.54, "kem": 25.5, "elev": 78}, {"id": "LHN-009", "kec": "Tanralili", "desa": "Lekopancing", "use": "Sawah", "own": "Tanah Adat", "soil": "Latosol", "luas": 9.16, "kem": 5.3, "elev": 130}, {"id": "LHN-010", "kec": "Moncongloe", "desa": "Moncongloe Lappara", "use": "Lahan Kosong", "own": "Hak Milik", "soil": "Podsolik", "luas": 4.28, "kem": 12.3, "elev": 132}, {"id": "LHN-011", "kec": "Tanralili", "desa": "Allepolea", "use": "Sawah", "own": "Hak Milik", "soil": "Podsolik", "luas": 5.85, "kem": 23.2, "elev": 20}, {"id": "LHN-012", "kec": "Pallangga", "desa": "Pangkabinanga", "use": "Permukiman", "own": "Tanah Adat", "soil": "Podsolik", "luas": 0.56, "kem": 16.2, "elev": 48}, {"id": "LHN-013", "kec": "Tanralili", "desa": "Lekopancing", "use": "Hutan", "own": "Hak Milik", "soil": "Latosol", "luas": 9.29, "kem": 4.5, "elev": 68}, {"id": "LHN-014", "kec": "Moncongloe", "desa": "Bontoramba", "use": "Hutan", "own": "Hak Milik", "soil": "Latosol", "luas": 5.56, "kem": 19.2, "elev": 231}, {"id": "LHN-015", "kec": "Bontomarannu", "desa": "Romang Lompoa", "use": "Tambak", "own": "Tanah Negara", "soil": "Regosol", "luas": 11.84, "kem": 23.9, "elev": 102}, {"id": "LHN-016", "kec": "Bontomarannu", "desa": "Borongloe", "use": "Sawah", "own": "HGU", "soil": "Latosol", "luas": 3.01, "kem": 8.2, "elev": 129}, {"id": "LHN-017", "kec": "Tanralili", "desa": "Lekopancing", "use": "Permukiman", "own": "Tanah Negara", "soil": "Aluvial", "luas": 2, "kem": 18.7, "elev": 161}, {"id": "LHN-018", "kec": "Tanralili", "desa": "Allepolea", "use": "Kebun", "own": "Hak Milik", "soil": "Regosol", "luas": 10.82, "kem": 27.3, "elev": 228}, {"id": "LHN-019", "kec": "Tanralili", "desa": "Allepolea", "use": "Hutan", "own": "Tanah Adat", "soil": "Regosol", "luas": 1.51, "kem": 22.2, "elev": 20}, {"id": "LHN-020", "kec": "Bontomarannu", "desa": "Borongloe", "use": "Kebun", "own": "Tanah Adat", "soil": "Latosol", "luas": 1.59, "kem": 21, "elev": 31}, {"id": "LHN-021", "kec": "Tamalate", "desa": "Barombong", "use": "Tambak", "own": "Hak Milik", "soil": "Podsolik", "luas": 7.48, "kem": 2.5, "elev": 58}, {"id": "LHN-022", "kec": "Tanralili", "desa": "Allepolea", "use": "Kebun", "own": "Tanah Negara", "soil": "Podsolik", "luas": 7.35, "kem": 16.6, "elev": 34}, {"id": "LHN-023", "kec": "Moncongloe", "desa": "Bontoramba", "use": "Hutan", "own": "Tanah Adat", "soil": "Podsolik", "luas": 1.3, "kem": 3.6, "elev": 92}, {"id": "LHN-024", "kec": "Pallangga", "desa": "Pangkabinanga", "use": "Lahan Kosong", "own": "HGU", "soil": "Aluvial", "luas": 2.7, "kem": 33.3, "elev": 97}, {"id": "LHN-025", "kec": "Bontomarannu", "desa": "Borongloe", "use": "Tambak", "own": "Tanah Negara", "soil": "Aluvial", "luas": 8.45, "kem": 9.1, "elev": 98}, {"id": "LHN-026", "kec": "Bontomarannu", "desa": "Romang Lompoa", "use": "Kebun", "own": "Tanah Negara", "soil": "Latosol", "luas": 7.47, "kem": 27.6, "elev": 199}, {"id": "LHN-027", "kec": "Bontomarannu", "desa": "Borongloe", "use": "Hutan", "own": "HGU", "soil": "Latosol", "luas": 6.36, "kem": 12.4, "elev": 12}, {"id": "LHN-028", "kec": "Tamalate", "desa": "Parang Tambung", "use": "Hutan", "own": "Tanah Negara", "soil": "Latosol", "luas": 8.4, "kem": 33.5, "elev": 119}, {"id": "LHN-029", "kec": "Pallangga", "desa": "Pangkabinanga", "use": "Sawah", "own": "HGU", "soil": "Aluvial", "luas": 2.95, "kem": 6.9, "elev": 57}, {"id": "LHN-030", "kec": "Moncongloe", "desa": "Moncongloe Lappara", "use": "Hutan", "own": "Tanah Negara", "soil": "Aluvial", "luas": 10.07, "kem": 4.2, "elev": 104}];
+const K=d=>d.kem<8?"Datar":d.kem<15?"Landai":d.kem<25?"Agak Curam":"Curam";
+D.forEach(d=>d.lereng=K(d));
+const F={kec:"Kecamatan",use:"Penggunaan lahan",own:"Status kepemilikan",soil:"Jenis tanah"},sel={kec:"",use:"",own:"",soil:""};
+const uniq=k=>[...new Set(D.map(d=>d[k]))].sort();
+const bar=document.getElementById("bar");
+bar.innerHTML=Object.keys(F).map(k=>`<label class="f">${F[k]}<select id="s_${k}"><option value="">Semua</option>${uniq(k).map(v=>`<option>${v}</option>`).join("")}</select></label>`).join("")+`<button class="btn" id="rst">Reset filter</button>`;
+Object.keys(F).forEach(k=>document.getElementById("s_"+k).onchange=e=>{sel[k]=e.target.value;draw()});
+document.getElementById("rst").onclick=()=>{Object.keys(sel).forEach(k=>{sel[k]="";document.getElementById("s_"+k).value=""});draw()};
+document.getElementById("theme").onclick=()=>{const r=document.documentElement;const dark=r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme:dark)").matches;r.dataset.theme=dark?"light":"dark";draw()};
+const sum=(a,f)=>a.reduce((s,x)=>s+f(x),0),fm=(n,d=2)=>n.toLocaleString("id-ID",{minimumFractionDigits:d,maximumFractionDigits:d});
+const grp=(a,k,o)=>{const m={};a.forEach(x=>m[x[k]]=(m[x[k]]||0)+(o?x.luas:1));return m};
+const ch={};const cs=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function mk(id,type,m,opt={}){const pal=[cs("--a1"),cs("--a2"),cs("--a3"),"#e25c93","#8c1d4b","#f7a8c8"];
+ const ks=Object.keys(m),dn=type==="doughnut";
+ if(ch[id])ch[id].destroy();
+ ch[id]=new Chart(document.getElementById(id),{type,data:{labels:ks,datasets:[{data:ks.map(k=>m[k]),backgroundColor:dn?pal:cs("--a1"),borderColor:dn?cs("--card"):undefined}]},
+ options:{responsive:true,maintainAspectRatio:false,indexAxis:opt.h?"y":"x",plugins:{legend:{display:dn,labels:{color:cs("--ink")}}},
+ scales:dn?{}:{x:{ticks:{color:cs("--mut")},grid:{color:cs("--line")}},y:{ticks:{color:cs("--mut")},grid:{color:cs("--line")},beginAtZero:true}}}})}
+function draw(){
+ const a=D.filter(d=>Object.keys(sel).every(k=>!sel[k]||d[k]===sel[k]));
+ const n=a.length,L=sum(a,d=>d.luas);
+ document.getElementById("meta").textContent=`${n} dari ${D.length} petak lahan ditampilkan`;
+ const kp=[["Total petak",n],["Total luas (ha)",fm(L)],["Rata-rata luas (ha)",n?fm(L/n):"-"],["Rata-rata kemiringan (%)",n?fm(sum(a,d=>d.kem)/n,1):"-"],["Rata-rata elevasi (m)",n?fm(sum(a,d=>d.elev)/n,0):"-"],["Jumlah desa",new Set(a.map(d=>d.desa)).size]];
+ document.getElementById("kpis").innerHTML=kp.map(([l,v])=>`<div class="card"><div class="l">${l}</div><div class="v">${v}</div></div>`).join("");
+ mk("c1","bar",grp(a,"use",1));mk("c2","doughnut",grp(a,"own",1));mk("c3","bar",grp(a,"kec",1),{h:1});
+ const lv=grp(a,"lereng",0),o={};["Datar","Landai","Agak Curam","Curam"].forEach(k=>o[k]=lv[k]||0);mk("c4","bar",o);
+ document.getElementById("cnt").textContent=n;
+ document.getElementById("tb").innerHTML="<tr><th>ID</th><th>Kecamatan</th><th>Desa</th><th>Penggunaan</th><th>Kepemilikan</th><th>Jenis tanah</th><th class=n>Luas (ha)</th><th class=n>Kemiringan (%)</th><th class=n>Elevasi (m)</th><th>Lereng</th></tr>"+a.map(d=>`<tr><td>${d.id}</td><td>${d.kec}</td><td>${d.desa}</td><td>${d.use}</td><td>${d.own}</td><td>${d.soil}</td><td class=n>${fm(d.luas)}</td><td class=n>${fm(d.kem,1)}</td><td class=n>${d.elev}</td><td>${d.lereng}</td></tr>`).join("");
+}
+draw();
+</script></main></body></html>
